@@ -1,0 +1,5 @@
+{
+  "name": "Ethiopian Cash Book",
+  "description": "A mobile-first cash book application tailored for the Ethiopian market with Amharic support and multi-profile management.",
+  "requestFramePermissions": ["publickey-credentials-get", "publickey-credentials-create"]
+}

@@ -1,0 +1,175 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "User profile information",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "username": { "type": "string" },
+        "displayName": { "type": "string" },
+        "email": { "type": "string" },
+        "photoURL": { "type": "string" }
+      },
+      "required": ["uid", "username", "email"]
+    },
+    "Profile": {
+      "title": "Profile",
+      "description": "A business or personal account profile",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "ownerId": { "type": "string" },
+        "members": { 
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["name", "ownerId"]
+    },
+    "Transaction": {
+      "title": "Transaction",
+      "description": "A cash in or out transaction",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "profileId": { "type": "string" },
+        "amount": { "type": "number" },
+        "type": { "type": "string", "enum": ["IN", "OUT"] },
+        "category": { "type": "string" },
+        "note": { "type": "string" },
+        "date": { "type": "string", "format": "date-time" },
+        "ownerId": { "type": "string" }
+      },
+      "required": ["profileId", "amount", "type", "ownerId", "date"]
+    },
+    "Chat": {
+      "title": "Chat",
+      "description": "A chat conversation between two users",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "participants": { "type": "array", "items": { "type": "string" } },
+        "lastMessage": { "type": "string" },
+        "lastMessageAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["participants", "updatedAt"]
+    },
+    "Message": {
+      "title": "Message",
+      "description": "An encrypted chat message",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "chatId": { "type": "string" },
+        "senderId": { "type": "string" },
+        "recipientId": { "type": "string" },
+        "encryptedContent": { "type": "string" },
+        "recipientEncryptedKey": { "type": "string" },
+        "senderEncryptedKey": { "type": "string" },
+        "iv": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["chatId", "senderId", "recipientId", "encryptedContent", "recipientEncryptedKey", "senderEncryptedKey", "iv", "createdAt"]
+    },
+    "UserKeys": {
+      "title": "UserKeys",
+      "description": "Public encryption keys for a user",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "publicKey": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "publicKey", "createdAt"]
+    },
+    "Reminder": {
+      "title": "Reminder",
+      "description": "A reminder for a task or payment",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "dueDate": { "type": "string", "format": "date-time" },
+        "completed": { "type": "boolean" },
+        "ownerId": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["title", "dueDate", "ownerId", "createdAt"]
+    },
+    "AuditLog": {
+      "title": "AuditLog",
+      "description": "An audit log entry for tracking actions.",
+      "type": "object",
+      "properties": {
+        "profileId": { "type": "string", "description": "The ID of the profile." },
+        "userId": { "type": "string", "description": "The ID of the user who performed the action." },
+        "userName": { "type": "string", "description": "The name of the user who performed the action." },
+        "action": { "type": "string", "enum": ["CREATE", "UPDATE", "DELETE"], "description": "The action performed." },
+        "details": { "type": "string", "description": "Details about the action." },
+        "timestamp": { "type": "string", "format": "date-time", "description": "The time the action was performed." },
+        "transactionType": { "type": "string", "enum": ["IN", "OUT"], "description": "The type of transaction." },
+        "amount": { "type": "number", "description": "The amount of the transaction." }
+      },
+      "required": ["profileId", "userId", "userName", "action", "details", "timestamp"]
+    },
+    "Notification": {
+      "title": "Notification",
+      "description": "A notification for a user",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "title": { "type": "string" },
+        "message": { "type": "string" },
+        "type": { "type": "string", "enum": ["TRANSACTION", "REMINDER", "SYSTEM"] },
+        "read": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "relatedId": { "type": "string" }
+      },
+      "required": ["userId", "title", "message", "type", "read", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "User profiles"
+    },
+    "/profiles/{profileId}": {
+      "schema": "Profile",
+      "description": "User profiles"
+    },
+    "/transactions/{transactionId}": {
+      "schema": "Transaction",
+      "description": "Transaction records"
+    },
+    "/chats/{chatId}": {
+      "schema": "Chat",
+      "description": "Chat conversations"
+    },
+    "/messages/{messageId}": {
+      "schema": "Message",
+      "description": "Chat messages"
+    },
+    "/userKeys/{userId}": {
+      "schema": "UserKeys",
+      "description": "User public keys"
+    },
+    "/reminders/{reminderId}": {
+      "schema": "Reminder",
+      "description": "User reminders"
+    },
+    "/audit_logs/{logId}": {
+      "schema": "AuditLog",
+      "description": "Audit logs for tracking actions."
+    },
+    "/notifications/{notificationId}": {
+      "schema": "Notification",
+      "description": "User notifications"
+    }
+  }
+}

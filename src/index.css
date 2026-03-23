@@ -1,0 +1,14 @@
+@import "tailwindcss";
+
+@theme {
+  --color-bg: #000000;
+  --color-text: #ffffff;
+  --color-primary: #facc15; /* Yellow */
+  --color-secondary: #1f1f1f;
+  --gradient-bg: linear-gradient(135deg, #000000 0%, #facc15 100%);
+}
+
+body {
+  background-color: var(--color-bg);
+  color: var(--color-text);
+}

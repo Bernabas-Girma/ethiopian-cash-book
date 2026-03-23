@@ -1,0 +1,284 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    //
+    // Collection: users
+    // Document ID: matches auth.uid
+    // Fields:
+    //   - uid: string (required, matches auth.uid)
+    //   - username: string (required, unique, 3-20 chars)
+    //   - displayName: string (optional)
+    //   - email: string (required)
+    //   - photoURL: string (optional)
+    //
+    // Collection: profiles
+    // Document ID: auto-generated
+    // Fields:
+    //   - name: string (required, 1-50 chars)
+    //   - ownerId: string (required, matches auth.uid)
+    //   - members: array of strings (optional, UIDs)
+    //   - createdAt: timestamp (required)
+    //
+    // Collection: transactions
+    // Document ID: auto-generated
+    // Fields:
+    //   - profileId: string (required, reference to profiles)
+    //   - amount: number (required, positive)
+    //   - type: string (required, IN/OUT)
+    //   - source: string (required, Cash/CBE/Telebirr/Other)
+    //   - category: string (required, 1-30 chars)
+    //   - note: string (optional, 0-200 chars)
+    //   - date: timestamp (required)
+    //   - ownerId: string (required, matches auth.uid)
+    //
+    // Collection: chats
+    // Document ID: auto-generated
+    // Fields:
+    //   - participants: list of strings (UIDs)
+    //   - lastMessage: string (optional)
+    //   - lastMessageAt: timestamp (optional)
+    //   - updatedAt: timestamp (required)
+    //
+    // Collection: messages
+    // Document ID: auto-generated
+    // Fields:
+    //   - chatId: string (required)
+    //   - senderId: string (required)
+    //   - recipientId: string (required)
+    //   - encryptedContent: string (required)
+    //   - recipientEncryptedKey: string (required)
+    //   - senderEncryptedKey: string (required)
+    //   - iv: string (required)
+    //   - createdAt: timestamp (required)
+    //
+    // Collection: userKeys
+    // Document ID: matches auth.uid
+    // Fields:
+    //   - uid: string (required)
+    //   - publicKey: string (required)
+    //   - createdAt: timestamp (required)
+    //
+    // ===============================================================
+
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+    
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function isAdmin() {
+      return isAuthenticated() &&
+        ((exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin') ||
+          (request.auth.token.email == "bernabasgirma00@gmail.com" && request.auth.token.email_verified == true)); // Default admin
+    }
+
+    function isProfileMember(profileId) {
+      return exists(/databases/$(database)/documents/profiles/$(profileId)) &&
+        (get(/databases/$(database)/documents/profiles/$(profileId)).data.ownerId == request.auth.uid || 
+        ('members' in get(/databases/$(database)/documents/profiles/$(profileId)).data && 
+         request.auth.uid in get(/databases/$(database)/documents/profiles/$(profileId)).data.members));
+    }
+
+    function isDocOwner() {
+      return isAuthenticated() && request.auth.uid == resource.data.ownerId;
+    }
+
+    function uidUnchanged() {
+      return !('ownerId' in request.resource.data) || request.resource.data.ownerId == request.auth.uid;
+    }
+
+    function uidNotModified() {
+      return !('ownerId' in request.resource.data) || request.resource.data.ownerId == resource.data.ownerId;
+    }
+
+    function hasOnlyAllowedFields(fields) {
+      return request.resource.data.keys().hasOnly(fields);
+    }
+
+    // ===============================================================
+    // Domain Validators
+    // ===============================================================
+
+    function isValidUser(data) {
+      return data.uid == request.auth.uid &&
+             data.username is string && data.username.size() >= 3 && data.username.size() <= 30 &&
+             data.email is string &&
+             (!('displayName' in data) || data.displayName is string) &&
+             (!('photoURL' in data) || data.photoURL is string) &&
+             (!('friends' in data) || data.friends is list) &&
+             (!('phoneNumber' in data) || data.phoneNumber is string) &&
+             (!('hideEmail' in data) || data.hideEmail is bool) &&
+             (!('messagePrivacy' in data) || data.messagePrivacy in ['everyone', 'friends', 'none']);
+    }
+
+    function isValidProfile(data) {
+      return data.name is string && data.name.size() > 0 && data.name.size() <= 100 &&
+             data.ownerId is string && data.ownerId == request.auth.uid &&
+             (!('members' in data) || data.members is list) &&
+             (!('roles' in data) || data.roles is map);
+    }
+
+    function isValidBudget(data) {
+      return data.profileId is string &&
+             data.category is string && data.category.size() > 0 &&
+             data.amount is number && data.amount >= 0 &&
+             data.period in ['monthly', 'quarterly', 'annual'] &&
+             data.ownerId is string && data.ownerId == request.auth.uid;
+    }
+
+    function isValidTransaction(data) {
+      return data.profileId is string &&
+             data.amount is number && data.amount > 0 &&
+             data.type in ['IN', 'OUT'] &&
+             data.source in ['Cash', 'CBE', 'Telebirr', 'Other'] &&
+             data.category is string && data.category.size() > 0 && data.category.size() <= 30 &&
+             (data.note == null || (data.note is string && data.note.size() <= 200)) &&
+             (data.date is timestamp || data.date == request.time) &&
+             data.ownerId is string && data.ownerId == request.auth.uid;
+    }
+
+    function isValidChat(data) {
+      return data.participants is list && data.participants.size() == 2 &&
+             request.auth.uid in data.participants &&
+             data.updatedAt is timestamp;
+    }
+
+    function isValidMessage(data) {
+      return data.chatId is string &&
+             data.senderId == request.auth.uid &&
+             data.recipientId is string &&
+             data.encryptedContent is string &&
+             data.recipientEncryptedKey is string &&
+             data.senderEncryptedKey is string &&
+             data.iv is string &&
+             data.createdAt is timestamp;
+    }
+
+    function isValidUserKey(data) {
+      return data.uid == request.auth.uid &&
+             data.publicKey is string &&
+             data.createdAt is timestamp;
+    }
+
+    function isValidReminder(data) {
+      return data.title is string && data.title.size() > 0 && data.title.size() <= 100 &&
+             (!('description' in data) || (data.description is string && data.description.size() <= 500)) &&
+             data.dueDate is timestamp &&
+             (!('completed' in data) || data.completed is bool) &&
+             data.ownerId == request.auth.uid &&
+             data.createdAt is timestamp;
+    }
+
+    function isValidAuditLog(data) {
+      return data.profileId is string &&
+             data.userId is string && data.userId == request.auth.uid &&
+             data.userName is string && data.userName.size() > 0 && data.userName.size() <= 100 &&
+             data.action in ['CREATE', 'UPDATE', 'DELETE'] &&
+             data.details is string && data.details.size() > 0 && data.details.size() <= 500 &&
+             (data.timestamp is timestamp || data.timestamp == request.time) &&
+             (!('transactionType' in data) || data.transactionType in ['IN', 'OUT']) &&
+             (!('amount' in data) || data.amount is number);
+    }
+
+    function isValidNotification(data) {
+      return data.userId is string &&
+             data.title is string && data.title.size() > 0 && data.title.size() <= 100 &&
+             data.message is string && data.message.size() > 0 && data.message.size() <= 500 &&
+             data.type in ['TRANSACTION', 'REMINDER', 'SYSTEM'] &&
+             data.read is bool &&
+             (data.createdAt is timestamp || data.createdAt == request.time) &&
+             (!('relatedId' in data) || data.relatedId is string);
+    }
+
+    // ===============================================================
+    // Rules
+    // ===============================================================
+
+    match /users/{userId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && request.auth.uid == userId && isValidUser(request.resource.data);
+      allow update: if isAuthenticated() && request.auth.uid == userId && isValidUser(request.resource.data);
+    }
+
+    match /profiles/{profileId} {
+      allow read: if isAuthenticated() && (resource.data.ownerId == request.auth.uid || ('members' in resource.data && request.auth.uid in resource.data.members));
+      allow create: if isAuthenticated() && isValidProfile(request.resource.data);
+      allow update: if isAuthenticated() && (
+        resource.data.ownerId == request.auth.uid || 
+        ('members' in resource.data && request.auth.uid in resource.data.members && 
+         (!('roles' in resource.data) || resource.data.roles[request.auth.uid] != 'viewer'))
+      ) && isValidProfile(request.resource.data);
+      allow delete: if isAuthenticated() && resource.data.ownerId == request.auth.uid;
+    }
+
+    match /budgets/{budgetId} {
+      allow read: if isAuthenticated() && 
+        exists(/databases/$(database)/documents/profiles/$(resource.data.profileId)) && (
+        get(/databases/$(database)/documents/profiles/$(resource.data.profileId)).data.ownerId == request.auth.uid ||
+        ('members' in get(/databases/$(database)/documents/profiles/$(resource.data.profileId)).data && request.auth.uid in get(/databases/$(database)/documents/profiles/$(resource.data.profileId)).data.members)
+      );
+      allow create: if isAuthenticated() && isValidBudget(request.resource.data);
+      allow delete: if isAuthenticated() && (
+        resource.data.ownerId == request.auth.uid ||
+        get(/databases/$(database)/documents/profiles/$(resource.data.profileId)).data.ownerId == request.auth.uid
+      );
+    }
+
+    match /transactions/{transactionId} {
+      allow read: if isAuthenticated() && isProfileMember(resource.data.profileId);
+      allow create: if isAuthenticated() && isProfileMember(request.resource.data.profileId) && isValidTransaction(request.resource.data);
+      allow update: if isAuthenticated() && isProfileMember(resource.data.profileId) && isValidTransaction(request.resource.data) && uidNotModified();
+      allow delete: if isAuthenticated() && isProfileMember(resource.data.profileId);
+    }
+
+    match /chats/{chatId} {
+      allow read: if isAuthenticated() && request.auth.uid in resource.data.participants;
+      allow create: if isAuthenticated() && isValidChat(request.resource.data);
+      allow update: if isAuthenticated() && request.auth.uid in resource.data.participants && isValidChat(request.resource.data);
+    }
+
+    match /messages/{messageId} {
+      allow read: if isAuthenticated() && 
+        exists(/databases/$(database)/documents/chats/$(resource.data.chatId)) &&
+        request.auth.uid in get(/databases/$(database)/documents/chats/$(resource.data.chatId)).data.participants;
+      allow create: if isAuthenticated() && isValidMessage(request.resource.data);
+    }
+
+    match /userKeys/{userId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && request.auth.uid == userId && isValidUserKey(request.resource.data);
+      allow update: if isAuthenticated() && request.auth.uid == userId && isValidUserKey(request.resource.data);
+    }
+
+    match /reminders/{reminderId} {
+      allow read: if isAuthenticated() && (resource.data.ownerId == request.auth.uid || isAdmin());
+      allow create: if isAuthenticated() && isValidReminder(request.resource.data);
+      allow update: if isAuthenticated() && resource.data.ownerId == request.auth.uid && isValidReminder(request.resource.data);
+      allow delete: if isAuthenticated() && (resource.data.ownerId == request.auth.uid || isAdmin());
+    }
+
+    match /audit_logs/{logId} {
+      allow read: if isAuthenticated() && isProfileMember(resource.data.profileId);
+      allow create: if isAuthenticated() && isProfileMember(request.resource.data.profileId) && isValidAuditLog(request.resource.data);
+      allow update, delete: if false;
+    }
+
+    match /notifications/{notificationId} {
+      allow read: if isAuthenticated() && resource.data.userId == request.auth.uid;
+      allow create: if isAuthenticated() && isValidNotification(request.resource.data);
+      allow update: if isAuthenticated() && resource.data.userId == request.auth.uid && 
+                    request.resource.data.diff(resource.data).affectedKeys().hasOnly(['read']);
+      allow delete: if isAuthenticated() && resource.data.userId == request.auth.uid;
+    }
+  }
+}

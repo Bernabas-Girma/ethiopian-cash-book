@@ -1,0 +1,77 @@
+{
+  "id": "/",
+  "name": "Ethiopian Cash Book",
+  "short_name": "CashBook",
+  "description": "Ethiopian Cash Book - Track your income and expenses easily with multi-profile support and secure cloud sync.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#000000",
+  "theme_color": "#FACC15",
+  "lang": "en",
+  "dir": "ltr",
+  "orientation": "portrait",
+  "categories": [
+    "finance",
+    "productivity",
+    "business"
+  ],
+  "icons": [
+    {
+      "src": "https://picsum.photos/seed/cashbook/192/192",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "https://picsum.photos/seed/cashbook/192/192",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "https://picsum.photos/seed/cashbook/512/512",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "https://picsum.photos/seed/cashbook/512/512",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "https://picsum.photos/seed/cashbook-screen1/1080/1920",
+      "sizes": "1080x1920",
+      "type": "image/png",
+      "label": "Home Screen",
+      "form_factor": "narrow"
+    },
+    {
+      "src": "https://picsum.photos/seed/cashbook-screen2/1920/1080",
+      "sizes": "1920x1080",
+      "type": "image/png",
+      "label": "Desktop View",
+      "form_factor": "wide"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Add Transaction",
+      "short_name": "Add",
+      "description": "Add a new transaction",
+      "url": "/?action=add",
+      "icons": [
+        {
+          "src": "https://picsum.photos/seed/cashbook-add/192/192",
+          "sizes": "192x192",
+          "type": "image/png"
+        }
+      ]
+    }
+  ],
+  "prefer_related_applications": false
+}
