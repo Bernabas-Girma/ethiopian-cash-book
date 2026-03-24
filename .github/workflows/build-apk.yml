@@ -29,7 +29,7 @@ jobs:
         run: npm ci
 
       - name: Install Capacitor plugins
-        run: npm install @capacitor/local-notifications @codetrix-studio/capacitor-google-auth
+        run: npm install @capacitor/local-notifications @codetrix-studio/capacitor-google-auth --legacy-peer-deps
 
       - name: Build web assets
         run: npm run build
