@@ -88,8 +88,18 @@ export function Login({ onSuccess }: LoginProps) {
     setError(null);
     try {
       if (isNativeApp()) {
-        await signInWithRedirect(auth, googleProvider);
-        return;
+        const { GoogleAuth } = await import('@codetrix-studio/capacitor-google-auth');
+        await GoogleAuth.initialize({
+          clientId: '320311380154-bubfj7h1kmah78gd57m820efq8oj5bq4.apps.googleusercontent.com',
+          scopes: ['profile', 'email'],
+          grantOfflineAccess: true,
+        });
+        const googleUser = await GoogleAuth.signIn();
+        const idToken = googleUser?.authentication?.idToken;
+        if (!idToken) throw new Error('No ID token from Google');
+        const credential = GoogleAuthProvider.credential(idToken);
+        const result = await signInWithCredential(auth, credential);
+        onSuccess(result.user);
       } else {
         // Web browser: Use Firebase popup
         const result = await signInWithPopup(auth, googleProvider);
