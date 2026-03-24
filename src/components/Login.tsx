@@ -95,18 +95,18 @@ export function Login({ onSuccess }: LoginProps) {
         if (!GoogleAuth) {
           throw new Error('GoogleAuth native plugin not available. Ensure the plugin is installed and synced.');
         }
-        // On Android the plugin self-initializes from google-services.json.
-        // Calling initialize() with a web clientId overrides that and causes error 10.
-        try {
-          const googleUser = await GoogleAuth.signIn();
-          const idToken = googleUser?.authentication?.idToken;
-          if (!idToken) throw new Error('No ID token returned from Google');
-          const credential = GoogleAuthProvider.credential(idToken);
-          const result = await signInWithCredential(auth, credential);
-          onSuccess(result.user);
-        } catch (nativeErr: any) {
-          throw new Error(`Native Google Sign-In failed: ${nativeErr?.message || JSON.stringify(nativeErr)}`);
-        }
+        // Use the Android client ID (not the web client ID) to avoid error 10.
+        await GoogleAuth.initialize({
+          clientId: '320311380154-tcf9t5tfais8dr849fvurt6p3pi4jv0l.apps.googleusercontent.com',
+          scopes: ['profile', 'email'],
+          grantOfflineAccess: true,
+        });
+        const googleUser = await GoogleAuth.signIn();
+        const idToken = googleUser?.authentication?.idToken;
+        if (!idToken) throw new Error('No ID token from Google');
+        const credential = GoogleAuthProvider.credential(idToken);
+        const result = await signInWithCredential(auth, credential);
+        onSuccess(result.user);
       } else {
         // Web browser: Use Firebase popup
         const result = await signInWithPopup(auth, googleProvider);
