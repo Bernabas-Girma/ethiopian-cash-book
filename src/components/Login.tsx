@@ -95,11 +95,8 @@ export function Login({ onSuccess }: LoginProps) {
         if (!GoogleAuth) {
           throw new Error('GoogleAuth native plugin not available. Ensure the plugin is installed and synced.');
         }
-        await GoogleAuth.initialize({
-          clientId: '320311380154-bubfj7h1kmah78gd57m820efq8oj5bq4.apps.googleusercontent.com',
-          scopes: ['profile', 'email'],
-          grantOfflineAccess: true,
-        });
+        // On Android the plugin self-initializes from google-services.json.
+        // Calling initialize() with a web clientId overrides that and causes error 10.
         const googleUser = await GoogleAuth.signIn();
         // Use the ID token to sign in with Firebase
         const credential = GoogleAuthProvider.credential(googleUser.authentication.idToken);
