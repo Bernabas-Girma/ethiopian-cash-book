@@ -45,7 +45,6 @@ import { LockScreen } from './components/LockScreen';
 import { Plus, Wallet, TrendingUp, TrendingDown, ChevronUp, ChevronDown, Share2, Users, Target, WifiOff } from 'lucide-react';
 import { serverTimestamp, or } from 'firebase/firestore';
 import { Capacitor } from '@capacitor/core';
-import { LocalNotifications } from '@capacitor/local-notifications';
 
 export default function App() {
   const [user, setUser] = useState<any>(null);
@@ -77,6 +76,7 @@ export default function App() {
     const requestNativeNotifications = async () => {
       if (Capacitor.isNativePlatform()) {
         try {
+          const { LocalNotifications } = await import('@capacitor/local-notifications');
           const { display } = await LocalNotifications.requestPermissions();
           console.log('Notification permission:', display);
         } catch (err) {
@@ -153,6 +153,7 @@ export default function App() {
   const sendPushNotification = async (title: string, body: string) => {
     if (Capacitor.isNativePlatform()) {
       try {
+        const { LocalNotifications } = await import('@capacitor/local-notifications');
         await LocalNotifications.schedule({
           notifications: [{
             title,
