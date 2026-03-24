@@ -13,8 +13,10 @@ export default defineConfig(({mode}) => {
     resolve: {
       alias: {
         '@': path.resolve(__dirname, '.'),
-        'react-is': path.resolve(__dirname, 'node_modules/react-is/cjs/react-is.production.js'),
       },
+    },
+    optimizeDeps: {
+      include: ['react-is'],
     },
     build: {
       rollupOptions: {
