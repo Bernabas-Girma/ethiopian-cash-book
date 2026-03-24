@@ -88,25 +88,8 @@ export function Login({ onSuccess }: LoginProps) {
     setError(null);
     try {
       if (isNativeApp()) {
-        // Native Android: Access the GoogleAuth plugin via the Capacitor bridge.
-        // The native plugin registers itself under window.Capacitor.Plugins at runtime.
-        const cap = (window as any).Capacitor;
-        const GoogleAuth = cap?.Plugins?.GoogleAuth;
-        if (!GoogleAuth) {
-          throw new Error('GoogleAuth native plugin not available. Ensure the plugin is installed and synced.');
-        }
-        // Use the Android client ID (not the web client ID) to avoid error 10.
-        await GoogleAuth.initialize({
-          clientId: '320311380154-tcf9t5tfais8dr849fvurt6p3pi4jv0l.apps.googleusercontent.com',
-          scopes: ['profile', 'email'],
-          grantOfflineAccess: true,
-        });
-        const googleUser = await GoogleAuth.signIn();
-        const idToken = googleUser?.authentication?.idToken;
-        if (!idToken) throw new Error('No ID token from Google');
-        const credential = GoogleAuthProvider.credential(idToken);
-        const result = await signInWithCredential(auth, credential);
-        onSuccess(result.user);
+        await signInWithRedirect(auth, googleProvider);
+        return;
       } else {
         // Web browser: Use Firebase popup
         const result = await signInWithPopup(auth, googleProvider);
