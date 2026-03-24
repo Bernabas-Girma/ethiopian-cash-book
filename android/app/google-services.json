@@ -14,6 +14,22 @@
       },
       "oauth_client": [
         {
+          "client_id": "320311380154-hgqkdit5j9jt10qb782nr9ee9utu959t.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.cashbook.app",
+            "certificate_hash": "2cf6c19d1438c374c4d2aa281e6a651a375dbd38"
+          }
+        },
+        {
+          "client_id": "320311380154-tcf9t5tfais8dr849fvurt6p3pi4jv0l.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.cashbook.app",
+            "certificate_hash": "270512d9178c3147d092c16ebcb60c685ca4e559"
+          }
+        },
+        {
           "client_id": "320311380154-bubfj7h1kmah78gd57m820efq8oj5bq4.apps.googleusercontent.com",
           "client_type": 3
         }
