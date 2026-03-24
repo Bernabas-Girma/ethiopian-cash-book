@@ -25,7 +25,6 @@ export default defineConfig(({mode}) => {
       rollupOptions: {
         external: [
           '@capacitor/local-notifications',
-          '@codetrix-studio/capacitor-google-auth',
         ],
       },
     },

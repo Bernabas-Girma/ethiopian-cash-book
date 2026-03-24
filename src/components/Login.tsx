@@ -88,8 +88,13 @@ export function Login({ onSuccess }: LoginProps) {
     setError(null);
     try {
       if (isNativeApp()) {
-        // Native Android: Use Capacitor Google Auth plugin
-        const { GoogleAuth } = await import('@codetrix-studio/capacitor-google-auth');
+        // Native Android: Access the GoogleAuth plugin via the Capacitor bridge.
+        // The native plugin registers itself under window.Capacitor.Plugins at runtime.
+        const cap = (window as any).Capacitor;
+        const GoogleAuth = cap?.Plugins?.GoogleAuth;
+        if (!GoogleAuth) {
+          throw new Error('GoogleAuth native plugin not available. Ensure the plugin is installed and synced.');
+        }
         await GoogleAuth.initialize({
           clientId: '320311380154-bubfj7h1kmah78gd57m820efq8oj5bq4.apps.googleusercontent.com',
           scopes: ['profile', 'email'],
