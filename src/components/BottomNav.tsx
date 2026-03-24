@@ -20,8 +20,8 @@ export function BottomNav({ activeTab, setActiveTab, t }: BottomNavProps) {
   ];
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 bg-black/80 backdrop-blur-xl border-t border-gray-800/50 flex justify-around items-center h-20 pb-safe px-4 z-40">
-      <div className="flex justify-around items-center w-full max-w-lg mx-auto bg-gray-900/50 rounded-2xl p-1 border border-gray-800/30">
+    <nav className="fixed bottom-0 left-0 right-0 bg-black/80 backdrop-blur-xl border-t border-gray-800/50 flex flex-col z-40 pb-safe">
+      <div className="flex justify-around items-center w-full max-w-lg mx-auto bg-gray-900/50 rounded-2xl p-1 border border-gray-800/30 h-16 px-4">
         {tabs.map((tab) => (
           <button
             key={tab.id}

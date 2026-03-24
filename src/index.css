@@ -12,3 +12,12 @@ body {
   background-color: var(--color-bg);
   color: var(--color-text);
 }
+
+/* Safe area inset utilities for edge-to-edge Android/iOS */
+.pb-safe {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+.mb-safe-nav {
+  margin-bottom: calc(5rem + env(safe-area-inset-bottom, 0px));
+}
