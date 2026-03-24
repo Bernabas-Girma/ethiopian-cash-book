@@ -3,7 +3,7 @@ name: Build Debug APK
 on:
   push:
     branches: [ main, master ]
-  workflow_dispatch: # allows manual trigger from GitHub UI
+  workflow_dispatch:
 
 jobs:
   build:
@@ -27,6 +27,9 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
+
+      - name: Install Capacitor Local Notifications
+        run: npm install @capacitor/local-notifications
 
       - name: Build web assets
         run: npm run build

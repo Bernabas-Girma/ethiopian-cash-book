@@ -44,6 +44,8 @@ import { LoadingSpinner } from './components/LoadingSpinner';
 import { LockScreen } from './components/LockScreen';
 import { Plus, Wallet, TrendingUp, TrendingDown, ChevronUp, ChevronDown, Share2, Users, Target, WifiOff } from 'lucide-react';
 import { serverTimestamp, or } from 'firebase/firestore';
+import { Capacitor } from '@capacitor/core';
+import { LocalNotifications } from '@capacitor/local-notifications';
 
 export default function App() {
   const [user, setUser] = useState<any>(null);
@@ -70,7 +72,24 @@ export default function App() {
 
   const t = translations[language];
 
+  // Request native notification permission on Android
   useEffect(() => {
+    const requestNativeNotifications = async () => {
+      if (Capacitor.isNativePlatform()) {
+        try {
+          const { display } = await LocalNotifications.requestPermissions();
+          console.log('Notification permission:', display);
+        } catch (err) {
+          console.error('Error requesting notification permission:', err);
+        }
+      } else {
+        // Web fallback
+        if ('Notification' in window && Notification.permission === 'default') {
+          Notification.requestPermission();
+        }
+      }
+    };
+
     const handleOnline = () => setIsOffline(false);
     const handleOffline = () => setIsOffline(true);
     const handleVisibilityChange = () => {
@@ -82,11 +101,7 @@ export default function App() {
     window.addEventListener('online', handleOnline);
     window.addEventListener('offline', handleOffline);
     document.addEventListener('visibilitychange', handleVisibilityChange);
-
-    // Request notification permission
-    if ('Notification' in window && Notification.permission === 'default') {
-      Notification.requestPermission();
-    }
+    requestNativeNotifications();
 
     return () => {
       window.removeEventListener('online', handleOnline);
@@ -125,17 +140,36 @@ export default function App() {
         }
       } catch (err) {
         console.error('Error fetching user data:', err);
-        // We don't throw here to avoid breaking the app, but we log it
         try {
           handleFirestoreError(err, OperationType.GET, `users/${user.uid}`);
-        } catch (e) {
-          // Error already logged by handleFirestoreError
-        }
+        } catch (e) {}
       }
     };
 
     fetchUserData();
   }, [user]);
+
+  // Send native or web notification
+  const sendPushNotification = async (title: string, body: string) => {
+    if (Capacitor.isNativePlatform()) {
+      try {
+        await LocalNotifications.schedule({
+          notifications: [{
+            title,
+            body,
+            id: Date.now(),
+            schedule: { at: new Date(Date.now() + 100) },
+            actionTypeId: '',
+            extra: null,
+          }]
+        });
+      } catch (err) {
+        console.error('Error sending native notification:', err);
+      }
+    } else if ('Notification' in window && Notification.permission === 'granted') {
+      new Notification(title, { body, icon: '/favicon.ico' });
+    }
+  };
 
   useEffect(() => {
     if (!user || !userData) return;
@@ -151,18 +185,11 @@ export default function App() {
       snapshot.docChanges().forEach((change) => {
         if (change.type === 'added') {
           const notif = change.doc.data();
-          // Only trigger for notifications created recently (not on initial load of old unread ones)
           const createdAt = notif.createdAt?.toDate?.() || new Date(notif.createdAt);
           if (new Date().getTime() - createdAt.getTime() < 10000) {
-            // Play sound
             const audio = new Audio('https://actions.google.com/sounds/v1/alarms/beep_short.ogg');
             audio.play().catch(e => console.error('Error playing sound:', e));
-
-            if ('Notification' in window && Notification.permission === 'granted') {
-              new Notification(notif.title, { body: notif.message, icon: '/favicon.ico' });
-            }
-            
-            // Show custom message
+            sendPushNotification(notif.title, notif.message);
             setMessage(`${notif.title}: ${notif.message}`);
           }
         }
@@ -175,7 +202,6 @@ export default function App() {
   useEffect(() => {
     if (!user || !userData) return;
 
-    // Check for due reminders and notify
     const checkReminders = async () => {
       try {
         const q = query(
@@ -190,9 +216,7 @@ export default function App() {
           const reminder = { id: docSnap.id, ...docSnap.data() } as any;
           const dueDate = reminder.dueDate?.toDate?.() || new Date(reminder.dueDate);
           
-          // If due within next 24 hours and not already notified
           if (dueDate > now && dueDate.getTime() - now.getTime() < 24 * 60 * 60 * 1000) {
-            // Check if we already sent a notification for this reminder today
             const notifQuery = query(
               collection(db, 'notifications'),
               where('userId', '==', user.uid),
@@ -218,7 +242,7 @@ export default function App() {
     };
 
     checkReminders();
-    const interval = setInterval(checkReminders, 60 * 60 * 1000); // Check every hour
+    const interval = setInterval(checkReminders, 60 * 60 * 1000);
     return () => clearInterval(interval);
   }, [user, userData]);
 
@@ -299,7 +323,6 @@ export default function App() {
 
       await addDoc(collection(db, 'audit_logs'), logData);
       
-      // Notify other members
       const profile = profiles.find(p => p.id === profileId);
       if (profile) {
         const membersToNotify = [profile.ownerId, ...(profile.members || [])].filter(id => id !== user.uid);
@@ -437,7 +460,7 @@ export default function App() {
     <ErrorBoundary>
       <div className="min-h-screen bg-gradient-to-b from-black to-yellow-950/30 pb-20">
         {/* Header */}
-        <header className="bg-black/80 backdrop-blur-md px-6 pt-4 pb-2 rounded-b-[2rem] shadow-sm border-b border-gray-800 sticky top-0 z-40">
+        <header className="bg-black/80 backdrop-blur-md px-6 pt-safe pb-2 rounded-b-[2rem] shadow-sm border-b border-gray-800 sticky top-0 z-40" style={{ paddingTop: 'env(safe-area-inset-top, 16px)' }}>
           {isOffline && (
             <div className="absolute top-0 left-0 right-0 bg-red-500 text-white text-[10px] font-bold uppercase tracking-widest text-center py-1 flex items-center justify-center space-x-2 rounded-t-[2rem]">
               <WifiOff size={12} />
@@ -655,10 +678,13 @@ export default function App() {
           </button>
         )}
 
-        <BottomNav activeTab={activeTab} setActiveTab={setActiveTab} t={t} />
+        {/* Bottom nav with safe area padding */}
+        <div style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}>
+          <BottomNav activeTab={activeTab} setActiveTab={setActiveTab} t={t} />
+        </div>
 
         {message && (
-          <div className="fixed top-6 left-6 right-6 bg-yellow-400 text-black p-4 rounded-xl shadow-lg z-50 animate-in slide-in-from-top duration-300">
+          <div className="fixed left-6 right-6 bg-yellow-400 text-black p-4 rounded-xl shadow-lg z-50 animate-in slide-in-from-top duration-300" style={{ top: 'calc(env(safe-area-inset-top, 16px) + 16px)' }}>
             {message}
           </div>
         )}
