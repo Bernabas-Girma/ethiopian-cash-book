@@ -16,9 +16,12 @@ export default defineConfig(({mode}) => {
       },
     },
     optimizeDeps: {
-      include: ['react-is'],
+      include: ['react-is', 'recharts', 'recharts > react-is'],
     },
     build: {
+      commonjsOptions: {
+        include: [/react-is/, /node_modules/],
+      },
       rollupOptions: {
         external: [
           '@capacitor/local-notifications',
