@@ -1,8 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   auth, 
   googleProvider, 
-  signInWithPopup, 
+  signInWithPopup,
+  signInWithRedirect,
+  getRedirectResult,
   createUserWithEmailAndPassword, 
   signInWithEmailAndPassword,
   sendEmailVerification
@@ -21,6 +23,23 @@ export function Login({ onSuccess }: LoginProps) {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Handle redirect result when page reloads after Google sign-in on Android
+  useEffect(() => {
+    setLoading(true);
+    getRedirectResult(auth)
+      .then((result) => {
+        if (result?.user) {
+          onSuccess(result.user);
+        }
+      })
+      .catch((err) => {
+        console.error('Redirect result error:', err);
+      })
+      .finally(() => {
+        setLoading(false);
+      });
+  }, []);
 
   const handleEmailAuth = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -58,12 +77,18 @@ export function Login({ onSuccess }: LoginProps) {
     setLoading(true);
     setError(null);
     try {
-      const result = await signInWithPopup(auth, googleProvider);
-      onSuccess(result.user);
+      const isAndroid = /android/i.test(navigator.userAgent);
+      if (isAndroid) {
+        // Use redirect on Android — popup doesn't work in WebView
+        await signInWithRedirect(auth, googleProvider);
+        // Page will redirect, result is handled in the useEffect above
+      } else {
+        const result = await signInWithPopup(auth, googleProvider);
+        onSuccess(result.user);
+      }
     } catch (err: any) {
       console.error('Google sign-in error:', err);
-      setError('Failed to sign in with Google.');
-    } finally {
+      setError('Failed to sign in with Google. Please try again.');
       setLoading(false);
     }
   };
