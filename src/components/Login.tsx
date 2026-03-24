@@ -97,11 +97,16 @@ export function Login({ onSuccess }: LoginProps) {
         }
         // On Android the plugin self-initializes from google-services.json.
         // Calling initialize() with a web clientId overrides that and causes error 10.
-        const googleUser = await GoogleAuth.signIn();
-        // Use the ID token to sign in with Firebase
-        const credential = GoogleAuthProvider.credential(googleUser.authentication.idToken);
-        const result = await signInWithCredential(auth, credential);
-        onSuccess(result.user);
+        try {
+          const googleUser = await GoogleAuth.signIn();
+          const idToken = googleUser?.authentication?.idToken;
+          if (!idToken) throw new Error('No ID token returned from Google');
+          const credential = GoogleAuthProvider.credential(idToken);
+          const result = await signInWithCredential(auth, credential);
+          onSuccess(result.user);
+        } catch (nativeErr: any) {
+          throw new Error(`Native Google Sign-In failed: ${nativeErr?.message || JSON.stringify(nativeErr)}`);
+        }
       } else {
         // Web browser: Use Firebase popup
         const result = await signInWithPopup(auth, googleProvider);
