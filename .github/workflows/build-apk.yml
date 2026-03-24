@@ -28,14 +28,43 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Install Capacitor Local Notifications
-        run: npm install @capacitor/local-notifications
+      - name: Install Capacitor plugins
+        run: npm install @capacitor/local-notifications @codetrix-studio/capacitor-google-auth
 
       - name: Build web assets
         run: npm run build
 
       - name: Sync Capacitor
         run: npx cap sync android
+
+      - name: Set up debug keystore for Google Sign-in
+        run: |
+          # Check if a committed keystore exists
+          if [ -f android/app/debug.keystore ]; then
+            echo "Using existing debug.keystore from repo"
+          else
+            echo "No keystore found - generating a new one..."
+            echo "⚠️  IMPORTANT: Download the keystore artifact, commit it to the repo,"
+            echo "    and add the SHA-1 to Firebase Console!"
+            keytool -genkey -v \
+              -keystore android/app/debug.keystore \
+              -alias androiddebugkey \
+              -keyalg RSA -keysize 2048 \
+              -validity 10000 \
+              -storepass android \
+              -keypass android \
+              -dname "CN=CashBook Debug,OU=CashBook,O=CashBook,L=Addis Ababa,ST=AA,C=ET"
+          fi
+          
+          # Always print SHA-1 for reference
+          echo ""
+          echo "============================================"
+          echo "SHA-1 FINGERPRINT FOR FIREBASE:"
+          keytool -list -v \
+            -keystore android/app/debug.keystore \
+            -alias androiddebugkey \
+            -storepass android 2>/dev/null | grep "SHA1:"
+          echo "============================================"
 
       - name: Fix Gradle wrapper jar
         run: |
@@ -54,3 +83,10 @@ jobs:
           name: debug-apk
           path: android/app/build/outputs/apk/debug/app-debug.apk
           retention-days: 7
+
+      - name: Upload keystore (download and commit to repo if new)
+        uses: actions/upload-artifact@v4
+        with:
+          name: debug-keystore
+          path: android/app/debug.keystore
+          retention-days: 30

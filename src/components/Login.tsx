@@ -9,8 +9,17 @@ import {
   signInWithEmailAndPassword,
   sendEmailVerification
 } from '../firebase';
+import { GoogleAuthProvider, signInWithCredential } from 'firebase/auth';
 import { Wallet, Mail, Lock, ArrowRight, AlertCircle, Loader2, UserPlus, LogIn } from 'lucide-react';
 import { cn } from '../lib/utils';
+
+// Detect if running inside Capacitor (Android APK)
+const isNativeApp = () => {
+  const cap = (window as any).Capacitor;
+  if (!cap) return false;
+  if (typeof cap.isNativePlatform === 'function') return cap.isNativePlatform();
+  return cap.platform === 'android' || cap.platform === 'ios';
+};
 
 interface LoginProps {
   onSuccess: (user: any) => void;
@@ -26,6 +35,7 @@ export function Login({ onSuccess }: LoginProps) {
 
   // Handle redirect result when page reloads after Google sign-in on Android
   useEffect(() => {
+    if (isNativeApp()) return; // Skip redirect handling on native
     setLoading(true);
     getRedirectResult(auth)
       .then((result) => {
@@ -77,18 +87,56 @@ export function Login({ onSuccess }: LoginProps) {
     setLoading(true);
     setError(null);
     try {
-      const isAndroid = /android/i.test(navigator.userAgent);
-      if (isAndroid) {
-        // Use redirect on Android — popup doesn't work in WebView
-        await signInWithRedirect(auth, googleProvider);
-        // Page will redirect, result is handled in the useEffect above
+      if (isNativeApp()) {
+        // Native Android: Use Capacitor Google Auth plugin
+        const { GoogleAuth } = await import('@codetrix-studio/capacitor-google-auth');
+        await GoogleAuth.initialize({
+          clientId: '320311380154-bubfj7h1kmah78gd57m820efq8oj5bq4.apps.googleusercontent.com',
+          scopes: ['profile', 'email'],
+          grantOfflineAccess: true,
+        });
+        const googleUser = await GoogleAuth.signIn();
+        // Use the ID token to sign in with Firebase
+        const credential = GoogleAuthProvider.credential(googleUser.authentication.idToken);
+        const result = await signInWithCredential(auth, credential);
+        onSuccess(result.user);
       } else {
+        // Web browser: Use Firebase popup
         const result = await signInWithPopup(auth, googleProvider);
         onSuccess(result.user);
       }
     } catch (err: any) {
       console.error('Google sign-in error:', err);
-      setError('Failed to sign in with Google. Please try again.');
+      const errorCode = err?.code || 'unknown';
+      const errorMessage = err?.message || 'Unknown error';
+      
+      // If popup was blocked, try redirect as fallback
+      if (errorCode === 'auth/popup-blocked' || errorCode === 'auth/popup-closed-by-user') {
+        try {
+          await signInWithRedirect(auth, googleProvider);
+          return;
+        } catch (redirectErr: any) {
+          console.error('Google redirect sign-in error:', redirectErr);
+          setError(`Redirect sign-in also failed: ${redirectErr?.code || redirectErr?.message || 'Unknown error'}`);
+          setLoading(false);
+          return;
+        }
+      }
+      
+      // Show specific error messages
+      if (errorCode === 'auth/unauthorized-domain') {
+        setError('This domain is not authorized for Google sign-in. Please add it to your Firebase Console → Authentication → Settings → Authorized domains.');
+      } else if (errorCode === 'auth/operation-not-allowed') {
+        setError('Google sign-in is not enabled. Please enable it in Firebase Console → Authentication → Sign-in method.');
+      } else if (errorCode === 'auth/cancelled-popup-request') {
+        setError('Sign-in was cancelled. Please try again.');
+      } else if (errorCode === 'auth/network-request-failed') {
+        setError('Network error. Please check your internet connection and try again.');
+      } else if (errorMessage.includes('popup_closed') || errorMessage.includes('12501') || errorMessage.includes('canceled')) {
+        setError('Sign-in was cancelled. Please try again.');
+      } else {
+        setError(`Google sign-in failed (${errorCode}): ${errorMessage}`);
+      }
       setLoading(false);
     }
   };
